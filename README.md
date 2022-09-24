@@ -1,5 +1,16 @@
 # mparticle-audiences-batch
 
+## Build
+
+```
+git clone https://github.com/splitio/mparticle-audiences-batch
+
+mvn clean compile assembly:single
+```
+
+## How to use it..
+
+
 Java HTTP server... key transaction expects the 
  * api key,
  * workspace id, 

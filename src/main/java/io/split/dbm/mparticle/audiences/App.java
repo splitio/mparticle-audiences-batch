@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +45,8 @@ public class App {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    static final Instant startTime = Instant.now();
+    
 	public static void main( String[] args ) throws Exception {
 		Logger rootLogger = LogManager.getLogManager().getLogger("");
 		rootLogger.setLevel(Level.INFO);
@@ -124,8 +127,41 @@ public class App {
 		}, 0, config.segmentsFlushRateInSeconds, TimeUnit.SECONDS);
 		
 		server.createContext("/audiences", new MyHandler());
+		server.createContext("/uptime", new UptimeHandler());
+		server.createContext("/ping", new PingHandler());
 		server.setExecutor(null);
 		server.start();
+	}
+
+	static class UptimeHandler implements HttpHandler {
+		public void handle(HttpExchange exchange) throws IOException {
+			Instant now = Instant.now();
+			
+			Duration duration = Duration.between(startTime, now);
+			String uptime = duration.toDaysPart() + "d:"
+					+ duration.toHoursPart() + "h:"
+					+ duration.toMinutesPart() + "m:"
+					+ duration.toSecondsPart() + "s";
+
+			exchange.sendResponseHeaders(200, uptime.length());
+			logger.info("200 - uptime - " + uptime);
+		
+			OutputStream os = exchange.getResponseBody();
+			os.write(uptime.getBytes());
+			os.close();					
+		}
+	}
+	
+	static class PingHandler implements HttpHandler {
+		public void handle(HttpExchange exchange) throws IOException {
+			String response = "pong";
+			exchange.sendResponseHeaders(200, response.length());
+			logger.info("200 - pong");
+		
+			OutputStream os = exchange.getResponseBody();
+			os.write(response.getBytes());
+			os.close();					
+		}
 	}
 	
 	private static Map<AudienceRequest, Set<String>> mpidCache = new HashMap<AudienceRequest, Set<String>>();

@@ -11,15 +11,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -68,14 +71,15 @@ public class App {
 		executor.scheduleAtFixedRate(new Runnable() {
 			public void run() {
 				logger.info("cache - " + mpidCache.values());
+				Instant startReading = Instant.now();
 				for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
 					AudienceRequest ar = entry.getKey();
-					
+
 					if(entry.getValue().size() < 1) {
 						logger.fine("cache empty...");
 						continue;
 					}
-					
+
 					String urlVerb = "";
 					if(ar.verb.equalsIgnoreCase("add")) {
 						urlVerb = "uploadKeys";
@@ -87,42 +91,50 @@ public class App {
 						mpidCache.remove(ar);
 						continue;
 					}
-					
-					final String url = "https://api.split.io/internal/api/v2/segments/" 
-	                        + ar.environmentId + '/' + ar.segment + "/" + urlVerb + "?replace=false";
-					logger.info("URL: " + url);
-					
-					String body = "{\"keys\": [ ";
-					for(String mpid : entry.getValue()) {
-						body += "\"" + mpid + "\", ";
-					}
-					if(body.indexOf(",") != -1) {
-						body = body.substring(0, body.lastIndexOf(","));
-					}
-					body += "]}";
-					
-					logger.info("POST body: " + body);
-					
-	                HttpRequest request = HttpRequest.newBuilder()
-	                        .PUT(HttpRequest.BodyPublishers.ofString(body))
-	                        .uri(URI.create(url))
-	                        .setHeader("Content-Type", "application/json")
-	                        .setHeader("Authorization", "Bearer " + ar.apiToken)
-	                        .build();
 
-	                HttpResponse<String> response;
+					final String url = "https://api.split.io/internal/api/v2/segments/" 
+							+ ar.environmentId + '/' + ar.segment + "/" + urlVerb + "?replace=false";
+					logger.info("URL: " + url);
+
+					// a single API call per segment happens under lock to guarantee
+					// no new keys are added to the cache while it is being flushed
+					writeLock.lock();
 					try {
-						response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-		                logger.info("POST TO SPLIT - " + response.statusCode() + " response body: " + response.body());
-		                if(response.statusCode() == 200) {
-		                	mpidCache.get(ar).clear();
-		                }
-					} catch (Exception e) {
-						logger.warning("error during POST to Split: " + e.getMessage());
-						e.printStackTrace();
+						String body = "{\"keys\": [ ";
+						for(String mpid : entry.getValue()) {
+							body += "\"" + mpid + "\", ";
+						}
+						if(body.indexOf(",") != -1) {
+							body = body.substring(0, body.lastIndexOf(","));
+						}
+						body += "]}";
+	
+						logger.info("POST body: " + body);
+	
+						HttpRequest request = HttpRequest.newBuilder()
+								.PUT(HttpRequest.BodyPublishers.ofString(body))
+								.uri(URI.create(url))
+								.setHeader("Content-Type", "application/json")
+								.setHeader("Authorization", "Bearer " + ar.apiToken)
+								.build();
+	
+						HttpResponse<String> response;
+						try {
+							response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+							logger.info("POST TO SPLIT - " + response.statusCode() + " response body: " + response.body());
+							if(response.statusCode() == 200) {
+								mpidCache.get(ar).clear();
+							}
+						} catch (Exception e) {
+							logger.warning("error during POST to Split: " + e.getMessage());
+							e.printStackTrace();
+						}
+					} finally {
+						writeLock.unlock();
 					}
-						
 				}
+				Duration d = Duration.between(startReading, Instant.now());
+				logger.info("FINISHED CACHE HANDLING - " + d.getSeconds() + "s");
 			}
 		}, 0, config.segmentsFlushRateInSeconds, TimeUnit.SECONDS);
 		
@@ -164,8 +176,10 @@ public class App {
 		}
 	}
 	
-	private static Map<AudienceRequest, Set<String>> mpidCache = new HashMap<AudienceRequest, Set<String>>();
-
+	static Map<AudienceRequest, Set<String>> mpidCache = new ConcurrentHashMap<AudienceRequest, Set<String>>();
+	static ReadWriteLock cacheLock = new ReentrantReadWriteLock();
+	static Lock writeLock = cacheLock.writeLock();
+	
 	static class MyHandler implements HttpHandler {
 
 		public void handle(HttpExchange exchange) throws IOException {
@@ -184,14 +198,27 @@ public class App {
 						logger.info(" parsed post: " + ar);
 						
 						if(ar != null) {
-							Set<String> mpids = mpidCache.get(ar);
-							if(mpids == null) {
-								mpids = new HashSet<String>();
-								mpidCache.put(ar, mpids);
+							if(ar.verb.equalsIgnoreCase("add") || ar.verb.equalsIgnoreCase("delete")) {
+								// add keys to the cache under lock so they aren't 
+								// cleared without being flushed by the other thread
+								writeLock.lock();
+								try {
+									Set<String> mpids;
+									mpids = mpidCache.get(ar); 
+									if(mpids == null) {
+										mpids = new HashSet<String>();
+										mpidCache.put(ar, mpids);
+									}
+									mpids.addAll(ar.getMpids()); // add this request's MPIDs to segment cache
+								} finally {
+									writeLock.unlock();
+								}
+								response = "MPIDs " + ar.verb;
+								exchange.sendResponseHeaders(200, response.length());
+							} else {
+								response = "invalid verb \"" + ar.verb + "\"; must be add or delete";
+								exchange.sendResponseHeaders(400, response.length());
 							}
-							mpids.addAll(ar.getMpids());
-							response = "MPIDs added";
-							exchange.sendResponseHeaders(200, response.length());
 						} else {
 							response = "invalid POST body";
 							exchange.sendResponseHeaders(400, response.length());

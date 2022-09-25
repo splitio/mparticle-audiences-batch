@@ -11,6 +11,7 @@ public class Configuration {
     public String authToken;
     public int port;
     public int segmentsFlushRateInSeconds;
+    public String keyFile;
     
     public static Configuration fromFile(String configFilePath) throws IOException {
         String configContents = Files.readString(Paths.get(configFilePath));
@@ -20,8 +21,7 @@ public class Configuration {
 	@Override
 	public String toString() {
 		return "Configuration [authToken=" + authToken + ", port=" + port + ", segmentsFlushRateInSeconds="
-				+ segmentsFlushRateInSeconds + "]";
-	}
-    
+				+ segmentsFlushRateInSeconds + ", keyFile=" + keyFile + "]";
+	}    
     
 }

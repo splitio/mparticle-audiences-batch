@@ -80,7 +80,7 @@ public class App {
 		
         char[] password = "password".toCharArray();
         KeyStore ks = KeyStore.getInstance("JKS");
-        FileInputStream fis = new FileInputStream("testkey.jks");
+        FileInputStream fis = new FileInputStream(config.keyFile);
         ks.load(fis, password);
 
         // setup the key manager factory

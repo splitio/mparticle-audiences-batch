@@ -81,13 +81,16 @@ public class AudienceRequest {
 	}
 
 
-
+	
 
 	@Override
 	public String toString() {
 		return "AudienceRequest [apiToken=" + apiToken + ", workspaceId=" + workspaceId + ", environmentId="
-				+ environmentId + ", trafficTypeId=" + trafficTypeId + ", mpids=" + mpids + "]";
+				+ environmentId + ", trafficTypeId=" + trafficTypeId + ", verb=" + verb + ", segment=" + segment
+				+ ", mpids=" + mpids + "]";
 	}
+
+
 
 
 	public String getVerb() {

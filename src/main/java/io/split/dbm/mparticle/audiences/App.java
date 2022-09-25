@@ -171,12 +171,12 @@ public class App {
 						try {
 							response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 							logger.info("POST TO SPLIT - " + response.statusCode() + " response body: " + response.body());
-							if(response.statusCode() == 200) {
-								mpidCache.get(ar).clear();
-							}
 						} catch (Exception e) {
 							logger.warning("error during POST to Split: " + e.getMessage());
 							e.printStackTrace();
+						} finally {
+							// whether it went or not, the cache should clear after an attempt
+							mpidCache.get(ar).clear();
 						}
 					} finally {
 						writeLock.unlock();

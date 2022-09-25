@@ -1,5 +1,7 @@
 # mparticle-audiences-batch
 
+This Java server supports SSL.
+
 ## What is this server?
 
 mParticle has an *audiences* feature.  Using something like Split targeting rules, an mParticle customer can define groups of users.  This is useful when an mParticle partner wants to work with an audience.  For example, Braze does marketing campaigns and can consume mParticle audiences for outreach.
@@ -61,7 +63,7 @@ https://github.com/splitio/mparticle-audiences
 
 ## How it works
 
-mParticle registers a new integration endpoint, one at which the mparticle-audiences node.js lambda resides.  When mParticle asks to create a segment or delete it, the lambda can handle itself.  When mParticle asks to add or delete an MPID to a segment (it always does this one at a time), the lambda POSTs the work to this server -- mparticle-audiences-batch -- and the Java HTTP server maintains a cache of MPIDs per segment.
+mParticle registers a new integration endpoint, one at which the mparticle-audiences node.js lambda resides.  When mParticle asks to create a segment or delete it, the lambda can handle itself.  When mParticle asks to add or delete an MPID to a segment (it always does this one at a time), the lambda POSTs the work to this server -- mparticle-audiences-batch -- and the Java HTTPS server maintains a cache of MPIDs per segment.
 
 At a specified interval, a batch server thread calls the Split API to add or delete MPIDs from the corresponding segment.
 
@@ -84,7 +86,7 @@ The auth token works like other Split servers; you must give the correct autho t
 
 The flush rate determines how often the cache will be emptied to Split.
 
-The key file is expected in JKS format.  The one included with the source code is self-signed... 
+The key file is expected in JKS format.  The one included with the source code is self-signed...  The server uses it to serve SSL.
 
 ## Questions?
 

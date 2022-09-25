@@ -74,6 +74,7 @@ Both the lambda and the batch server are multi-tenant.  They can support any num
   "port" : 5010,
   "authToken" : "foo",
   "segmentsFlushRateInSeconds" : 10
+  "keyFile" : "yourkey.jks" 
 }
 ```
 
@@ -82,6 +83,8 @@ A file with this configuration is meant to be supplied by command line path.
 The auth token works like other Split servers; you must give the correct autho token or your transaction will be ignored.
 
 The flush rate determines how often the cache will be emptied to Split.
+
+The key file is expected in JKS format.  The one included with the source code is self-signed... 
 
 ## Questions?
 

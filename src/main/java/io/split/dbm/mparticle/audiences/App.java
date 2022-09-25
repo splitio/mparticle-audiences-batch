@@ -123,7 +123,7 @@ public class App {
 				for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
 					AudienceRequest ar = entry.getKey();
 
-					logger.info(ar.getSegment() + " size: " + entry.getValue().size());
+					logger.info(ar.getSegment() + " (" + ar.verb + ") size: " + entry.getValue().size());
 					
 					if(entry.getValue().size() < 1) {
 						continue;

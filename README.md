@@ -6,7 +6,11 @@
 git clone https://github.com/splitio/mparticle-audiences-batch
 
 mvn clean compile assembly:single
+
+java -jar target/audiences-0.0.1-SNAPSHOT-jar-with-dependencies.jar audiences.config
 ```
+
+audiences.config is a JSON configuration file included with the repository.  You can choose the port on which the server will listen, an authorization token to weed out garbage transactions, and the rate at which MPIDs should be flushed to Split in seconds.
 
 ## How to use it..
 

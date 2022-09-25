@@ -1,6 +1,20 @@
 # mparticle-audiences-batch
 
-## Build
+## What is this server?
+
+mParticle has an *audiences* feature.  Using something like Split targeting rules, an mParticle customer can define groups of users.  This is useful when an mParticle partner wants to work with an audience.  For example, Braze does marketing campaigns and can consume mParticle audiences for outreach.
+
+Dozens of companies have audience integration with mParticle.
+
+Split segments are similar to mParticle, but more static.  In order to sync audiences with mParticle, Split must have an endpoint that can receive requests to build a new segment, add and remove keys from it, and remove the segment.  That endpoint is a node.js lambda you can find here:  https://github.com/splitio/mparticle-audiences
+
+This server is to address a performance problem.  mParticle gives keys to Split one MPID at a time.  Thus, Split was getting flooded with one off requests to change segments, creating a costly performance problem.
+
+To address the proble, this server was created.  This Java server takes MPIDs from the lambda endpoint and caches them in memory.  At a configurable interval, the server uses a separate thread to flush any cached keys to their corresponding Split segment.  This gives control over how often each segment flush takes place.
+
+In addition, the server has /uptime and /ping requests for maintainability. 
+
+## How to Build
 
 ```
 git clone https://github.com/splitio/mparticle-audiences-batch
@@ -12,16 +26,32 @@ java -jar target/audiences-0.0.1-SNAPSHOT-jar-with-dependencies.jar audiences.co
 
 audiences.config is a JSON configuration file included with the repository.  You can choose the port on which the server will listen, an authorization token to weed out garbage transactions, and the rate at which MPIDs should be flushed to Split in seconds.
 
-## How to use it..
+## How the AWS lambda uses it..
 
-
-Java HTTP server... key transaction expects the 
  * api key,
  * workspace id, 
  * environment id, 
  * traffic type id, 
  * segment name, 
  * and list of MPIDs
+
+```
+{
+    "apiToken": "5c3f****",
+    "workspaceId": "c02d****",
+    "environmentId": "c02f****",
+    "trafficTypeId": "5ecf****",
+    "verb" : "add",
+    "mpids" : [
+        "001",
+        "002",
+        "003"
+    ],
+    "segment": "yuki"
+}
+```
+
+Verb can be add or delete.
 
 Designed to be called from 
 
@@ -31,9 +61,9 @@ https://github.com/splitio/mparticle-audiences
 
 ## How it works
 
-mParticle registers a new integration endpoint, one at which the mparticle-audiences node.js lambda resides.  When mParticle asks to create a segment or delete it, the lambda can handle itself.  When mParticle asks to add or delete an MPID to a segment (it always does this one at a time), the lambda POSTs the work to this project -- mparticle-audiences-batch -- and the Java HTTP server maintains a cache of MPIDs per segment.
+mParticle registers a new integration endpoint, one at which the mparticle-audiences node.js lambda resides.  When mParticle asks to create a segment or delete it, the lambda can handle itself.  When mParticle asks to add or delete an MPID to a segment (it always does this one at a time), the lambda POSTs the work to this server -- mparticle-audiences-batch -- and the Java HTTP server maintains a cache of MPIDs per segment.
 
-At a specified interval, the batch server calls the Split API to add or delete MPIDs from the corresponding segment.
+At a specified interval, a batch server thread calls the Split API to add or delete MPIDs from the corresponding segment.
 
 Both the lambda and the batch server are multi-tenant.  They can support any number of Split customers that wish to use the integration.
 
@@ -56,26 +86,5 @@ The flush rate determines how often the cache will be emptied to Split.
 ## Questions?
 
 david.martin@split.io
-
-```
-{
-    "apiToken": "5c3f****"
-    "workspaceId": "c02d****",
-    "environmentId": "c02f****",
-    "trafficTypeId": "5ecf****",
-    "verb" : "add",
-    "mpids" : [
-        "001",
-        "002",
-        "003"
-    ],
-    "segment": "yuki"
-}
-```
-
-Sample POST body to add (or delete) MPIDs from an in-memory cache on the batch server.
-
-These requests are meant to be made by the node.js lambda audiences code.
-
 
 

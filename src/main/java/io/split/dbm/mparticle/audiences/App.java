@@ -1,5 +1,6 @@
 package io.split.dbm.mparticle.audiences;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -9,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -28,10 +30,20 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManagerFactory;
+
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsParameters;
+import com.sun.net.httpserver.HttpsServer;
+
 
 /**
  * Hello world!
@@ -59,12 +71,50 @@ public class App {
 		
 		logger.setLevel(Level.INFO);
 		
-		logger.info("starting server...");
-		
 		config = Configuration.fromFile(configFile(args));
 		logger.info(config.toString());
+
+//		HttpServer server = HttpServer.create(new InetSocketAddress(config.port), 0);
+		HttpsServer server = HttpsServer.create(new InetSocketAddress(config.port), 0);
 		
-		HttpServer server = HttpServer.create(new InetSocketAddress(config.port), 0);
+		SSLContext sslContext = SSLContext.getInstance("TLS");
+		
+        char[] password = "password".toCharArray();
+        KeyStore ks = KeyStore.getInstance("JKS");
+        FileInputStream fis = new FileInputStream("testkey.jks");
+        ks.load(fis, password);
+
+        // setup the key manager factory
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+        kmf.init(ks, password);
+
+        // setup the trust manager factory
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+        tmf.init(ks);
+
+        // setup the HTTPS context and parameters
+        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
+            public void configure(HttpsParameters params) {
+            	logger.info("configure SSL");
+                try {
+                    // initialise the SSL context
+                    SSLContext context = getSSLContext();
+                    SSLEngine engine = context.createSSLEngine();
+                    params.setNeedClientAuth(false);
+                    params.setCipherSuites(engine.getEnabledCipherSuites());
+                    params.setProtocols(engine.getEnabledProtocols());
+
+                    // Set the SSL parameters
+                    SSLParameters sslParameters = context.getSupportedSSLParameters();
+                    params.setSSLParameters(sslParameters);
+                    logger.info("finished SSL initialization");
+                } catch (Exception ex) {
+                    logger.severe("Failed to create HTTPS port");
+                }
+            }
+        });		
+		
 		logger.info("server listening to port " + config.port);
 
 		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();

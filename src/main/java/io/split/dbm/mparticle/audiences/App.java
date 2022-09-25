@@ -119,13 +119,13 @@ public class App {
 		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 		executor.scheduleAtFixedRate(new Runnable() {
 			public void run() {
-				logger.info("cache - " + mpidCache.values());
 				Instant startReading = Instant.now();
 				for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
 					AudienceRequest ar = entry.getKey();
 
+					logger.info(ar.getSegment() + " size: " + entry.getValue().size());
+					
 					if(entry.getValue().size() < 1) {
-						logger.fine("cache empty...");
 						continue;
 					}
 

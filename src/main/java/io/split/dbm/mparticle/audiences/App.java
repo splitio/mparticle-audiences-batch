@@ -234,12 +234,14 @@ public class App {
 			List<String> results = new LinkedList<String>();
 			
 			for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
-				results.add(entry.getKey().apiToken.substring(0, 4) + "****..."
-						+ ":" + entry.getKey().workspaceId
-						+ ":" + entry.getKey().environmentId
-						+ ":" + entry.getKey().segment + ":" 
-						+ entry.getKey().verb 
-						+ " => " + entry.getValue().size());
+				if(entry.getValue().size() > 0) {
+					results.add(entry.getKey().apiToken.substring(0, 4) + "****..."
+							+ ":" + entry.getKey().workspaceId
+							+ ":" + entry.getKey().environmentId
+							+ ":" + entry.getKey().segment + ":" 
+							+ entry.getKey().verb 
+							+ " => " + entry.getValue().size());
+				}
 			}
 			
 			String response = "";

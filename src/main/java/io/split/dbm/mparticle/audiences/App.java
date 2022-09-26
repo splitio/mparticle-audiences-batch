@@ -243,8 +243,12 @@ public class App {
 			}
 			
 			String response = "";
-			for(String s : results) {
-				response += s + System.getProperty("line.separator");
+			if(results.size() > 0) {
+				for(String s : results) {
+					response += s + System.getProperty("line.separator");
+				}
+			} else {
+				response = "cache empty";
 			}
 			
 			exchange.sendResponseHeaders(200, response.length());

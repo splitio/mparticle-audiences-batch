@@ -14,6 +14,7 @@ import java.security.KeyStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -192,6 +193,7 @@ public class App {
 		server.createContext("/audiences", new MyHandler());
 		server.createContext("/uptime", new UptimeHandler());
 		server.createContext("/ping", new PingHandler());
+		server.createContext("/cache", new CachePrintingHandler());
 		server.setExecutor(null);
 		server.start();
 	}
@@ -224,6 +226,31 @@ public class App {
 			OutputStream os = exchange.getResponseBody();
 			os.write(response.getBytes());
 			os.close();					
+		}
+	}
+	
+	static class CachePrintingHandler implements HttpHandler {
+		public void handle(HttpExchange exchange) throws IOException {
+			List<String> results = new LinkedList<String>();
+			
+			for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
+				results.add(entry.getKey().apiToken.substring(0, 4) + "****..."
+						+ ":" + entry.getKey().workspaceId
+						+ ":" + entry.getKey().environmentId
+						+ ":" + entry.getKey().segment + ":" 
+						+ entry.getKey().verb 
+						+ " => " + entry.getValue().size());
+			}
+			
+			String response = "";
+			for(String s : results) {
+				response += s + System.getProperty("line.separator");
+			}
+			
+			exchange.sendResponseHeaders(200, response.length());
+			OutputStream os = exchange.getResponseBody();
+			os.write(response.getBytes());
+			os.close();
 		}
 	}
 	

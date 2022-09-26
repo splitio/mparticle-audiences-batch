@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -120,12 +121,15 @@ public class App {
 		executor.scheduleAtFixedRate(new Runnable() {
 			public void run() {
 				Instant startReading = Instant.now();
+				Set<AudienceRequest> emptyRequests = new TreeSet<AudienceRequest>();
+						
 				for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
 					AudienceRequest ar = entry.getKey();
 
 					logger.info(ar.getSegment() + " (" + ar.verb + ") size: " + entry.getValue().size());
 					
 					if(entry.getValue().size() < 1) {
+						emptyRequests.add(entry.getKey());
 						continue;
 					}
 
@@ -181,6 +185,9 @@ public class App {
 					} finally {
 						writeLock.unlock();
 					}
+				}
+				for(AudienceRequest ar : emptyRequests) {
+					mpidCache.remove(ar);
 				}
 				Duration d = Duration.between(startReading, Instant.now());
 				logger.info("FINISHED CACHE HANDLING - " + d.getSeconds() + "s");

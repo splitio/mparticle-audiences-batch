@@ -121,16 +121,14 @@ public class App {
 		executor.scheduleAtFixedRate(new Runnable() {
 			public void run() {
 				Instant startReading = Instant.now();
-				Set<AudienceRequest> emptyRequests = new TreeSet<AudienceRequest>();
 						
 				for(Entry<AudienceRequest, Set<String>> entry : mpidCache.entrySet()) {
 					AudienceRequest ar = entry.getKey();
 
-					logger.info(ar.getSegment() + " (" + ar.verb + ") size: " + entry.getValue().size());
-					
 					if(entry.getValue().size() < 1) {
-						emptyRequests.add(entry.getKey());
 						continue;
+					} else {
+						logger.info(ar.getSegment() + " (" + ar.verb + ") size: " + entry.getValue().size());
 					}
 
 					String urlVerb = "";
@@ -185,9 +183,6 @@ public class App {
 					} finally {
 						writeLock.unlock();
 					}
-				}
-				for(AudienceRequest ar : emptyRequests) {
-					mpidCache.remove(ar);
 				}
 				Duration d = Duration.between(startReading, Instant.now());
 				logger.info("FINISHED CACHE HANDLING - " + d.getSeconds() + "s");

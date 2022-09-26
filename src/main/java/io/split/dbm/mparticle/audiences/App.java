@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -75,7 +74,6 @@ public class App {
 		config = Configuration.fromFile(configFile(args));
 		logger.info(config.toString());
 
-//		HttpServer server = HttpServer.create(new InetSocketAddress(config.port), 0);
 		HttpsServer server = HttpsServer.create(new InetSocketAddress(config.port), 0);
 		
 		SSLContext sslContext = SSLContext.getInstance("TLS");
@@ -271,7 +269,7 @@ public class App {
 			String response = "_placeholder_";
 			if(exchange.getRequestMethod().equalsIgnoreCase("post")) {
 				String authHeader = getHeader(exchange, "Authorization");
-//				logger.info(" authHeader: " + authHeader);
+
 				if(authHeader != null && authHeader.equals(config.authToken)) {
 					
 					AudienceRequest ar = null;
@@ -293,7 +291,7 @@ public class App {
 										mpids = new HashSet<String>();
 										mpidCache.put(ar, mpids);
 									}
-									mpids.addAll(ar.getMpids()); // add this request's MPIDs to segment cache
+									mpids.addAll(ar.getMpids());
 								} finally {
 									writeLock.unlock();
 								}

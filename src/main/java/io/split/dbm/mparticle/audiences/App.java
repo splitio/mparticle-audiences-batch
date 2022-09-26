@@ -166,6 +166,7 @@ public class App {
 								.uri(URI.create(url))
 								.setHeader("Content-Type", "application/json")
 								.setHeader("Authorization", "Bearer " + ar.apiToken)
+								.timeout(Duration.ofSeconds(5))
 								.build();
 	
 						HttpResponse<String> response;
